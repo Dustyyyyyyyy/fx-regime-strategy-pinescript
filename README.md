@@ -30,5 +30,5 @@ Key metrics (TradingView Strategy Tester):
 
 ## How to run
 1. Open TradingView → Pine Editor
-2. Paste `strategy.pine`
+2. Paste code from TradingView Pinecode
 3. Add to chart and review Strategy Tester
