@@ -11,8 +11,8 @@ This repo contains a TradingView Pine Script strategy built to study market regi
 - `results/` – screenshots of Strategy Tester metrics
 
 ## Backtest snapshot (example)
-Instrument: [e.g., EURUSD / AUDUSD]  
-Timeframe: [e.g., 5m]  
+Instrument: AUDUSD
+Timeframe: 1 hour  
 Period: Jan 2025 – Jan 2026  
 Position sizing: 0.25 lots (fixed)  
 Costs modeled: commission + slippage (see Pine `strategy()` settings)
