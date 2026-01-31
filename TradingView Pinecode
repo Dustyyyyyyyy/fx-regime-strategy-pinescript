@@ -1,0 +1,115 @@
+//@version=5
+strategy("ML-Inspired Vol/EMA/ATR Strategy v2 (Adaptive Modes) — 10k + 0.25 lots",
+     overlay=true,
+
+     // ✅ Backtest capital
+     initial_capital=10000,
+     currency=currency.USD,
+
+     // ✅ Don’t use % of equity sizing anymore
+     default_qty_type=strategy.fixed,
+     default_qty_value=25000,   // fallback; we also force qty below
+
+     pyramiding=0,
+     process_orders_on_close=true)
+
+// === Fixed lot size: 0.25 lots ===
+// 1 lot = 100,000 units (FX). 0.25 lots = 25,000 units.
+lots  = input.float(0.25, "Lots per trade", step=0.01, minval=0.01)
+units = math.round(lots * 100000)
+
+// === Mode selection ===
+mode = input.string("Balanced", title="Trading Mode",
+     options=["Conservative", "Balanced", "Aggressive"],
+     tooltip="Choose your trade frequency style")
+
+useTrendFilter = input.bool(true, "Enable Trend Filter (ADX>20)")
+
+// === Base parameters ===
+emaLen     = input.int(50, "EMA Length")
+atrLen     = input.int(14, "ATR Length")
+rsiLen     = input.int(14, "RSI Length")
+atrMult    = input.float(1.5, "ATR Multiplier for Stop")
+riskReward = input.float(2.0, "Risk-Reward Ratio")
+
+// === Adaptive parameters by mode ===
+float volThresh = na
+float atrThresh = na
+float emaSlopeCut = na
+float rsiBuyLevel = na
+float rsiSellLevel = na
+
+if mode == "Conservative"
+    volThresh    := 1.30
+    atrThresh    := 1.30
+    emaSlopeCut  := -0.006
+    rsiBuyLevel  := 35
+    rsiSellLevel := 65
+else if mode == "Balanced"
+    volThresh    := 1.10
+    atrThresh    := 1.10
+    emaSlopeCut  := -0.003
+    rsiBuyLevel  := 45
+    rsiSellLevel := 55
+else
+    volThresh    := 0.95
+    atrThresh    := 0.95
+    emaSlopeCut  := -0.001
+    rsiBuyLevel  := 50
+    rsiSellLevel := 50
+
+// === Indicator calculations ===
+ema      = ta.ema(close, emaLen)
+emaSlope = (ema - ema[10]) / ema[10]
+volNorm  = volume / ta.sma(volume, 50)
+atr      = ta.atr(atrLen)
+atrNorm  = atr / ta.sma(atr, 50)
+rsi      = ta.rsi(close, rsiLen)
+[plusDI, minusDI, adx] = ta.dmi(14, 14)
+
+// === ML-inspired signal logic ===
+bullish = (volNorm > volThresh) and (emaSlope > emaSlopeCut) and (atrNorm > atrThresh)
+bearish = (volNorm < (2 - volThresh)) and (emaSlope < emaSlopeCut) and (atrNorm < (2 - atrThresh))
+
+rsiBuy  = rsi < rsiBuyLevel
+rsiSell = rsi > rsiSellLevel
+
+buySignal  = bullish and rsiBuy
+sellSignal = bearish and rsiSell
+
+// === Optional trend filter ===
+if useTrendFilter
+    buySignal  := buySignal and (adx > 20)
+    sellSignal := sellSignal and (adx > 20)
+
+// === Plot visuals ===
+plot(ema, color=color.orange, title="EMA")
+plotshape(buySignal,  title="Buy",  style=shape.triangleup,   color=color.new(color.green,0), size=size.small, location=location.belowbar)
+plotshape(sellSignal, title="Sell", style=shape.triangledown, color=color.new(color.red,0),   size=size.small, location=location.abovebar)
+
+// === Trade management ===
+// ✅ Use qty=units to force 0.25-lot sizing
+if (buySignal)
+    stopLevel = close - atr * atrMult
+    takeLevel = close + atr * atrMult * riskReward
+    strategy.entry("Long", strategy.long, qty=units)
+    strategy.exit("Exit Long", from_entry="Long", stop=stopLevel, limit=takeLevel)
+
+if (sellSignal)
+    stopLevel = close + atr * atrMult
+    takeLevel = close - atr * atrMult * riskReward
+    strategy.entry("Short", strategy.short, qty=units)
+    strategy.exit("Exit Short", from_entry="Short", stop=stopLevel, limit=takeLevel)
+
+// === Visualization of conditions ===
+plot(volNorm, "VolNorm", color=color.new(color.blue, 70))
+plot(atrNorm, "ATRNorm", color=color.new(color.red, 70))
+plot(adx, "ADX", color=color.new(color.yellow, 40))
+
+// === Info label ===
+var label info = na
+if barstate.islast
+    label.delete(info)
+    labelText = str.format("Mode: {0}\nLots: {1}\nVolThresh: {2}\nATRThresh: {3}\nEMA Slope Cut: {4}\nRSI Levels: {5}/{6}",mode,str.tostring(lots, "#.##"),str.tostring(volThresh, "#.##"),str.tostring(atrThresh, "#.##"),str.tostring(emaSlopeCut, "#.####"),str.tostring(rsiBuyLevel, "#"),str.tostring(rsiSellLevel, "#"))
+    info := label.new(bar_index, high, labelText,
+      style=label.style_label_left, color=color.new(color.black,60), textcolor=color.white)
