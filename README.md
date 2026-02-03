@@ -6,16 +6,12 @@ This repo contains a TradingView Pine Script strategy built to study market regi
 - normalized volume
 - RSI + ADX filters
 
-## What’s inside
-- `strategy.pine` – full strategy code
-- `results/` – screenshots of Strategy Tester metrics
-
 ## Backtest snapshot (example)
 Instrument: AUDUSD
 Timeframe: 1 hour  
 Period: Jan 2025 – Jan 2026  
 Position sizing: 0.25 lots (fixed)  
-Costs modeled: commission + slippage (see Pine `strategy()` settings)
+Costs modeled: commission + slippage
 
 Key metrics (TradingView Strategy Tester):
 - Net return: +18.85%
